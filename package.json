@@ -30,6 +30,7 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/graphql": "^13.2.4",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/throttler": "^6.5.0",
     "@opentelemetry/api-logs": "^0.214.0",
     "@opentelemetry/auto-instrumentations-node": "^0.72.0",
     "@opentelemetry/exporter-logs-otlp-http": "^0.214.0",
