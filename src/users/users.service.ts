@@ -1,36 +1,26 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { USERS, UserRecord } from '../store-data';
+import { PrismaService } from '../prisma/prisma.service';
 import { User } from './entities/user.entity';
 
 @Injectable()
 export class UsersService {
-  findAll(): User[] {
-    return USERS.map((user) => this.mapToEntity(user));
+  constructor(private readonly prisma: PrismaService) {}
+
+  async findAll(): Promise<User[]> {
+    const users = await this.prisma.user.findMany();
+    return users.map((u) => ({ ...u, reviews: [], orders: [] }));
   }
 
-  findOne(id: string): User | undefined {
-    const user = USERS.find((item) => item.id === id);
-    return user ? this.mapToEntity(user) : undefined;
+  async findOne(id: string): Promise<User | null> {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    return user ? { ...user, reviews: [], orders: [] } : null;
   }
 
-  findOneOrFail(id: string): User {
-    const user = this.findOne(id);
+  async findOneOrFail(id: string): Promise<User> {
+    const user = await this.findOne(id);
     if (!user) {
       throw new NotFoundException(`Usuario con id "${id}" no encontrado`);
     }
     return user;
-  }
-
-  private mapToEntity(user: UserRecord): User {
-    return {
-      id: user.id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      lastVisit: user.lastVisit,
-      createdAt: user.createdAt,
-      reviews: [],
-      orders: [],
-    };
   }
 }

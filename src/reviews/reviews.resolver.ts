@@ -22,30 +22,22 @@ export class ReviewsResolver {
   ) {}
 
   @Query(() => [Review], { name: 'reviews' })
-  reviews(): Review[] {
+  reviews(): Promise<Review[]> {
     return this.reviewsService.findAll();
   }
 
   @Query(() => Review, { name: 'review', nullable: true })
-  review(@Args('id', { type: () => ID }) id: string): Review | null {
-    return this.reviewsService.findOne(id) ?? null;
+  review(@Args('id', { type: () => ID }) id: string): Promise<Review | null> {
+    return this.reviewsService.findOne(id);
   }
 
   @ResolveField(() => User)
-  user(@Parent() review: Review): User {
-    const user = this.usersService.findOne(review.userId);
-    if (!user) {
-      throw new Error(`Usuario no encontrado para review "${review.id}"`);
-    }
-    return user;
+  async user(@Parent() review: Review): Promise<User> {
+    return this.usersService.findOneOrFail(review.userId);
   }
 
   @ResolveField(() => Product)
-  product(@Parent() review: Review): Product {
-    const product = this.productsService.findOne(review.productId);
-    if (!product) {
-      throw new Error(`Producto no encontrado para review "${review.id}"`);
-    }
-    return product;
+  async product(@Parent() review: Review): Promise<Product> {
+    return this.productsService.findOneOrFail(review.productId);
   }
 }

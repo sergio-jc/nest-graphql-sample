@@ -7,12 +7,12 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Get()
-  findAll(): Product[] {
+  findAll(): Promise<Product[]> {
     return this.productsService.findAll();
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string): Product {
+  findOne(@Param('id') id: string): Promise<Product> {
     return this.productsService.findOneOrFail(id);
   }
 }

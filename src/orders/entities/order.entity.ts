@@ -6,7 +6,7 @@ import {
   ObjectType,
   registerEnumType,
 } from '@nestjs/graphql';
-import { OrderStatus } from '../../store-data';
+import { OrderStatus } from '../../../generated/prisma/client';
 import { User } from '../../users/entities/user.entity';
 import { OrderItem } from './order-item.entity';
 

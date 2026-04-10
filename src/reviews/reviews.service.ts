@@ -1,49 +1,58 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { REVIEWS, ReviewRecord } from '../store-data';
+import { PrismaService } from '../prisma/prisma.service';
 import { Review } from './entities/review.entity';
 
 @Injectable()
 export class ReviewsService {
-  findAll(): Review[] {
-    return REVIEWS.map((review) => this.mapToEntity(review));
+  constructor(private readonly prisma: PrismaService) {}
+
+  async findAll(): Promise<Review[]> {
+    const reviews = await this.prisma.review.findMany();
+    return reviews.map((r) => ({
+      ...r,
+      user: undefined as never,
+      product: undefined as never,
+    }));
   }
 
-  findOne(id: string): Review | undefined {
-    const review = REVIEWS.find((item) => item.id === id);
-    return review ? this.mapToEntity(review) : undefined;
+  async findOne(id: string): Promise<Review | null> {
+    const review = await this.prisma.review.findUnique({ where: { id } });
+    return review
+      ? { ...review, user: undefined as never, product: undefined as never }
+      : null;
   }
 
-  findOneOrFail(id: string): Review {
-    const review = this.findOne(id);
+  async findOneOrFail(id: string): Promise<Review> {
+    const review = await this.findOne(id);
     if (!review) {
       throw new NotFoundException(`Reseña con id "${id}" no encontrada`);
     }
     return review;
   }
 
-  findByUserId(userId: string): Review[] {
-    return REVIEWS.filter((review) => review.userId === userId).map((review) =>
-      this.mapToEntity(review),
-    );
-  }
-
-  findByProductId(productId: string): Review[] {
-    return REVIEWS.filter((review) => review.productId === productId).map(
-      (review) => this.mapToEntity(review),
-    );
-  }
-
-  private mapToEntity(review: ReviewRecord): Review {
-    return {
-      id: review.id,
-      title: review.title,
-      comment: review.comment,
-      rating: review.rating,
-      userId: review.userId,
-      productId: review.productId,
+  async findByUserId(userId: string): Promise<Review[]> {
+    const reviews = await this.prisma.review.findMany({ where: { userId } });
+    return reviews.map((r) => ({
+      ...r,
       user: undefined as never,
       product: undefined as never,
-      createdAt: review.createdAt,
-    };
+    }));
+  }
+
+  async findByProductId(productId: string): Promise<Review[]> {
+    const reviews = await this.prisma.review.findMany({ where: { productId } });
+    return reviews.map((r) => ({
+      ...r,
+      user: undefined as never,
+      product: undefined as never,
+    }));
+  }
+
+  async averageRatingByProductId(productId: string): Promise<number | null> {
+    const result = await this.prisma.review.aggregate({
+      where: { productId },
+      _avg: { rating: true },
+    });
+    return result._avg.rating;
   }
 }

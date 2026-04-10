@@ -12,42 +12,47 @@ import { ProductsService } from './products.service';
 import { Category } from '../categories/entities/category.entity';
 import { Review } from '../reviews/entities/review.entity';
 import { ReviewsService } from '../reviews/reviews.service';
-import { getCategoryForProductOrThrow } from './product-category.lookup';
+import { PrismaService } from '../prisma/prisma.service';
+import { NotFoundException } from '@nestjs/common';
 
 @Resolver(() => Product)
 export class ProductsResolver {
   constructor(
     private readonly productsService: ProductsService,
     private readonly reviewsService: ReviewsService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Query(() => [Product], { name: 'products' })
-  products(): Product[] {
+  products(): Promise<Product[]> {
     return this.productsService.findAll();
   }
 
   @Query(() => Product, { name: 'product', nullable: true })
-  product(@Args('id', { type: () => ID }) id: string): Product | null {
-    return this.productsService.findOne(id) ?? null;
+  product(@Args('id', { type: () => ID }) id: string): Promise<Product | null> {
+    return this.productsService.findOne(id);
   }
 
   @ResolveField(() => Category)
-  category(@Parent() product: Product): Category {
-    return getCategoryForProductOrThrow(product.id);
+  async category(@Parent() product: Product): Promise<Category> {
+    const category = await this.prisma.category.findUnique({
+      where: { id: product.categoryId },
+    });
+    if (!category) {
+      throw new NotFoundException(
+        `Categoria no encontrada para el producto "${product.id}"`,
+      );
+    }
+    return category;
   }
 
   @ResolveField(() => [Review])
-  reviews(@Parent() product: Product): Review[] {
+  reviews(@Parent() product: Product): Promise<Review[]> {
     return this.reviewsService.findByProductId(product.id);
   }
 
   @ResolveField(() => Float, { nullable: true })
-  rating(@Parent() product: Product): number | null {
-    const reviews = this.reviewsService.findByProductId(product.id);
-    if (reviews.length === 0) {
-      return null;
-    }
-    const total = reviews.reduce((sum, review) => sum + review.rating, 0);
-    return total / reviews.length;
+  rating(@Parent() product: Product): Promise<number | null> {
+    return this.reviewsService.averageRatingByProductId(product.id);
   }
 }

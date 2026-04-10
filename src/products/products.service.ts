@@ -1,41 +1,33 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 import { Product } from './entities/product.entity';
-import { PRODUCTS, ProductRecord } from '../store-data';
 
 @Injectable()
 export class ProductsService {
-  findAll(): Product[] {
-    return PRODUCTS.map((product) => this.mapToEntity(product));
+  constructor(private readonly prisma: PrismaService) {}
+
+  async findAll(): Promise<Product[]> {
+    const products = await this.prisma.product.findMany();
+    return products.map((p) => ({ ...p, rating: null }));
   }
 
-  findOne(id: string): Product | undefined {
-    const product = PRODUCTS.find((p) => p.id === id);
-    return product ? this.mapToEntity(product) : undefined;
+  async findOne(id: string): Promise<Product | null> {
+    const product = await this.prisma.product.findUnique({ where: { id } });
+    return product ? { ...product, rating: null } : null;
   }
 
-  findByCategoryId(categoryId: string): Product[] {
-    return PRODUCTS.filter((p) => p.categoryId === categoryId).map((product) =>
-      this.mapToEntity(product),
-    );
-  }
-
-  findOneOrFail(id: string): Product {
-    const product = this.findOne(id);
+  async findOneOrFail(id: string): Promise<Product> {
+    const product = await this.findOne(id);
     if (!product) {
       throw new NotFoundException(`Producto con id "${id}" no encontrado`);
     }
     return product;
   }
 
-  private mapToEntity(product: ProductRecord): Product {
-    return {
-      id: product.id,
-      name: product.name,
-      description: product.description,
-      price: product.price,
-      stock: product.stock,
-      imageUrl: product.imageUrl,
-      rating: null,
-    };
+  async findByCategoryId(categoryId: string): Promise<Product[]> {
+    const products = await this.prisma.product.findMany({
+      where: { categoryId },
+    });
+    return products.map((p) => ({ ...p, rating: null }));
   }
 }

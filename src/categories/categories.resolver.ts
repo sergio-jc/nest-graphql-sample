@@ -19,22 +19,22 @@ export class CategoriesResolver {
   ) {}
 
   @Query(() => [Category], { name: 'categories' })
-  categories(): Category[] {
+  categories(): Promise<Category[]> {
     return this.categoriesService.findAll();
   }
 
   @Query(() => Category, { name: 'category', nullable: true })
-  category(@Args('id', { type: () => ID }) id: string): Category | null {
-    return this.categoriesService.findOne(id) ?? null;
+  category(@Args('id', { type: () => ID }) id: string): Promise<Category | null> {
+    return this.categoriesService.findOne(id);
   }
 
   @Query(() => Category, { name: 'categoryByName', nullable: true })
-  categoryByName(@Args('name') name: string): Category | null {
-    return this.categoriesService.findByName(name) ?? null;
+  categoryByName(@Args('name') name: string): Promise<Category | null> {
+    return this.categoriesService.findByName(name);
   }
 
   @ResolveField(() => [Product])
-  products(@Parent() category: Category): Product[] {
+  products(@Parent() category: Category): Promise<Product[]> {
     return this.productsService.findByCategoryId(category.id);
   }
 }

@@ -7,29 +7,17 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Get()
-  findAll(): Order[] {
-    return this.ordersService.findAll().map((order) => this.enrichOrder(order));
+  findAll(): Promise<Order[]> {
+    return this.ordersService.findAll();
   }
 
   @Get('user/:userId')
-  findByUserId(@Param('userId') userId: string): Order[] {
-    return this.ordersService
-      .findByUserId(userId)
-      .map((order) => this.enrichOrder(order));
+  findByUserId(@Param('userId') userId: string): Promise<Order[]> {
+    return this.ordersService.findByUserId(userId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string): Order {
-    const order = this.ordersService.findOneOrFail(id);
-    return this.enrichOrder(order);
-  }
-
-  private enrichOrder(order: Order): Order {
-    const items = this.ordersService.findItemsByOrderId(order.id);
-    const total = items.reduce(
-      (sum, item) => sum + item.quantity * item.unitPrice,
-      0,
-    );
-    return { ...order, items, total };
+  findOne(@Param('id') id: string): Promise<Order> {
+    return this.ordersService.findOneOrFail(id);
   }
 }

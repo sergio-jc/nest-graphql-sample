@@ -1,65 +1,57 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import {
-  ORDER_ITEMS,
-  ORDERS,
-  OrderItemRecord,
-  OrderRecord,
-} from '../store-data';
+import { PrismaService } from '../prisma/prisma.service';
 import { OrderItem } from './entities/order-item.entity';
 import { Order } from './entities/order.entity';
 
 @Injectable()
 export class OrdersService {
-  findAll(): Order[] {
-    return ORDERS.map((order) => this.mapOrderToEntity(order));
+  constructor(private readonly prisma: PrismaService) {}
+
+  async findAll(): Promise<Order[]> {
+    const orders = await this.prisma.order.findMany();
+    return orders.map((o) => ({
+      ...o,
+      user: undefined as never,
+      items: [],
+      total: 0,
+    }));
   }
 
-  findOne(id: string): Order | undefined {
-    const order = ORDERS.find((item) => item.id === id);
-    return order ? this.mapOrderToEntity(order) : undefined;
+  async findOne(id: string): Promise<Order | null> {
+    const order = await this.prisma.order.findUnique({ where: { id } });
+    return order
+      ? { ...order, user: undefined as never, items: [], total: 0 }
+      : null;
   }
 
-  findOneOrFail(id: string): Order {
-    const order = this.findOne(id);
+  async findOneOrFail(id: string): Promise<Order> {
+    const order = await this.findOne(id);
     if (!order) {
       throw new NotFoundException(`Orden con id "${id}" no encontrada`);
     }
     return order;
   }
 
-  findByUserId(userId: string): Order[] {
-    return ORDERS.filter((order) => order.userId === userId).map((order) =>
-      this.mapOrderToEntity(order),
-    );
-  }
-
-  findItemsByOrderId(orderId: string): OrderItem[] {
-    return ORDER_ITEMS.filter((item) => item.orderId === orderId).map((item) =>
-      this.mapOrderItemToEntity(item),
-    );
-  }
-
-  private mapOrderToEntity(order: OrderRecord): Order {
-    return {
-      id: order.id,
-      userId: order.userId,
+  async findByUserId(userId: string): Promise<Order[]> {
+    const orders = await this.prisma.order.findMany({ where: { userId } });
+    return orders.map((o) => ({
+      ...o,
       user: undefined as never,
       items: [],
       total: 0,
-      status: order.status,
-      createdAt: order.createdAt,
-      updatedAt: order.updatedAt,
-    };
+    }));
   }
 
-  private mapOrderItemToEntity(item: OrderItemRecord): OrderItem {
-    return {
-      id: item.id,
-      orderId: item.orderId,
-      productId: item.productId,
-      product: undefined as never,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-    };
+  async findItemsByOrderId(orderId: string): Promise<OrderItem[]> {
+    const items = await this.prisma.orderItem.findMany({ where: { orderId } });
+    return items.map((i) => ({ ...i, product: undefined as never }));
+  }
+
+  async computeTotal(orderId: string): Promise<number> {
+    const items = await this.prisma.orderItem.findMany({
+      where: { orderId },
+      select: { quantity: true, unitPrice: true },
+    });
+    return items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
   }
 }

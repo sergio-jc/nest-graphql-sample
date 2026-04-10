@@ -7,22 +7,22 @@ export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
   @Get()
-  findAll(): Review[] {
+  findAll(): Promise<Review[]> {
     return this.reviewsService.findAll();
   }
 
   @Get('user/:userId')
-  findByUserId(@Param('userId') userId: string): Review[] {
+  findByUserId(@Param('userId') userId: string): Promise<Review[]> {
     return this.reviewsService.findByUserId(userId);
   }
 
   @Get('product/:productId')
-  findByProductId(@Param('productId') productId: string): Review[] {
+  findByProductId(@Param('productId') productId: string): Promise<Review[]> {
     return this.reviewsService.findByProductId(productId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string): Review {
+  findOne(@Param('id') id: string): Promise<Review> {
     return this.reviewsService.findOneOrFail(id);
   }
 }

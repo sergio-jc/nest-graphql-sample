@@ -7,12 +7,12 @@ export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
   @Get()
-  findAll(): Category[] {
+  findAll(): Promise<Category[]> {
     return this.categoriesService.findAll();
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string): Category {
+  findOne(@Param('id') id: string): Promise<Category> {
     return this.categoriesService.findOneOrFail(id);
   }
 }

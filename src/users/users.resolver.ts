@@ -22,22 +22,22 @@ export class UsersResolver {
   ) {}
 
   @Query(() => [User], { name: 'users' })
-  users(): User[] {
+  users(): Promise<User[]> {
     return this.usersService.findAll();
   }
 
   @Query(() => User, { name: 'user', nullable: true })
-  user(@Args('id', { type: () => ID }) id: string): User | null {
-    return this.usersService.findOne(id) ?? null;
+  user(@Args('id', { type: () => ID }) id: string): Promise<User | null> {
+    return this.usersService.findOne(id);
   }
 
   @ResolveField(() => [Review])
-  reviews(@Parent() user: User): Review[] {
+  reviews(@Parent() user: User): Promise<Review[]> {
     return this.reviewsService.findByUserId(user.id);
   }
 
   @ResolveField(() => [Order])
-  orders(@Parent() user: User): Order[] {
+  orders(@Parent() user: User): Promise<Order[]> {
     return this.ordersService.findByUserId(user.id);
   }
 }

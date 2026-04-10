@@ -24,33 +24,28 @@ export class OrdersResolver {
   ) {}
 
   @Query(() => [Order], { name: 'orders' })
-  orders(): Order[] {
+  orders(): Promise<Order[]> {
     return this.ordersService.findAll();
   }
 
   @Query(() => Order, { name: 'order', nullable: true })
-  order(@Args('id', { type: () => ID }) id: string): Order | null {
-    return this.ordersService.findOne(id) ?? null;
+  order(@Args('id', { type: () => ID }) id: string): Promise<Order | null> {
+    return this.ordersService.findOne(id);
   }
 
   @ResolveField(() => User)
-  user(@Parent() order: Order): User {
-    const user = this.usersService.findOne(order.userId);
-    if (!user) {
-      throw new Error(`Usuario no encontrado para la orden "${order.id}"`);
-    }
-    return user;
+  async user(@Parent() order: Order): Promise<User> {
+    return this.usersService.findOneOrFail(order.userId);
   }
 
   @ResolveField(() => [OrderItem])
-  items(@Parent() order: Order): OrderItem[] {
+  items(@Parent() order: Order): Promise<OrderItem[]> {
     return this.ordersService.findItemsByOrderId(order.id);
   }
 
   @ResolveField(() => Float)
-  total(@Parent() order: Order): number {
-    const items = this.ordersService.findItemsByOrderId(order.id);
-    return items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+  total(@Parent() order: Order): Promise<number> {
+    return this.ordersService.computeTotal(order.id);
   }
 }
 
@@ -59,11 +54,7 @@ export class OrderItemsResolver {
   constructor(private readonly productsService: ProductsService) {}
 
   @ResolveField(() => Product)
-  product(@Parent() item: OrderItem): Product {
-    const product = this.productsService.findOne(item.productId);
-    if (!product) {
-      throw new Error(`Producto no encontrado para item "${item.id}"`);
-    }
-    return product;
+  product(@Parent() item: OrderItem): Promise<Product> {
+    return this.productsService.findOneOrFail(item.productId);
   }
 }

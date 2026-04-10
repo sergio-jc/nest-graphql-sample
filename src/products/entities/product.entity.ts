@@ -22,4 +22,6 @@ export class Product {
 
   @Field(() => Float, { nullable: true })
   rating: number | null;
+
+  categoryId: string;
 }
