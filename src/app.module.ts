@@ -2,14 +2,17 @@ import { Module } from '@nestjs/common';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { GraphQLModule } from '@nestjs/graphql';
 import { APP_GUARD } from '@nestjs/core';
+import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import depthLimit from 'graphql-depth-limit';
 import { join } from 'path';
+import { validateEnv } from './config/env.validation';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DataloaderModule } from './dataloader/dataloader.module';
 import { DataloaderService } from './dataloader/dataloader.service';
 import { GqlThrottlerGuard } from './gql-throttler.guard';
+import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProductsModule } from './products/products.module';
 import { CategoriesModule } from './categories/categories.module';
@@ -19,6 +22,12 @@ import { OrdersModule } from './orders/orders.module';
 
 @Module({
   imports: [
+    // Validates all env vars at startup — app crashes with a clear message
+    // if a required var is missing instead of failing silently at runtime.
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validate: validateEnv,
+    }),
     ThrottlerModule.forRoot([
       {
         name: 'default',
@@ -28,6 +37,7 @@ import { OrdersModule } from './orders/orders.module';
       },
     ]),
     PrismaModule,
+    HealthModule,
     DataloaderModule,
     // forRootAsync permite inyectar DataloaderService para crearlo por request.
     // `driver` va fuera de useFactory (requisito de la API de NestJS GraphQL).
