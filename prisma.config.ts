@@ -3,6 +3,20 @@
 import 'dotenv/config';
 import { defineConfig } from '@prisma/config';
 
+function buildDatasourceUrl(): string {
+  const url = process.env['DATABASE_URL'] ?? 'file:./prisma/dev.db';
+  const authToken = process.env['DATABASE_AUTH_TOKEN'];
+
+  // The Prisma CLI requires the token as a query param; the runtime adapter
+  if (authToken && url.startsWith('libsql://') && !url.includes('authToken')) {
+    const parsed = new URL(url);
+    parsed.searchParams.set('authToken', authToken);
+    return parsed.toString();
+  }
+
+  return url;
+}
+
 export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
@@ -10,8 +24,6 @@ export default defineConfig({
     seed: 'tsx prisma/seed.ts',
   },
   datasource: {
-    // Local dev:  DATABASE_URL="file:./prisma/dev.db"
-    // Turso prod: DATABASE_URL="libsql://<db-name>.turso.io?authToken=<token>"
-    url: process.env['DATABASE_URL'] ?? 'file:./prisma/dev.db',
+    url: buildDatasourceUrl(),
   },
 });
