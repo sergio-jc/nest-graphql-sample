@@ -1,98 +1,120 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Mock Shop API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A production-ready REST + GraphQL API that simulates an e-commerce backend. Built as a reference project to demonstrate modern Node.js architecture patterns: dual-transport APIs, N+1 prevention with DataLoader, distributed tracing with OpenTelemetry, and edge-compatible databases.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+**Live demo:** [mock-shop-api.onrender.com](https://mock-shop-api.onrender.com)
+&nbsp;·&nbsp; GraphQL playground: `/graphql`
+&nbsp;·&nbsp; REST + Swagger docs: `/api-docs`
+&nbsp;·&nbsp; Health check: `/health`
 
-## Description
+>[!Note]
+> This demo is hosted on an infrastructure tier that can sleep after prolonged inactivity. If the service is idle, the first request(s) may take a few minutes to wake the server up (cold start) before responses return normally.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+---
 
-## Project setup
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | [NestJS 11](https://nestjs.com/) |
+| GraphQL | [Apollo Server 5](https://www.apollographql.com/) — code-first via decorators |
+| ORM | [Prisma 7](https://www.prisma.io/) with LibSQL driver adapter |
+| Database (dev) | SQLite via `@libsql/client` (local file) |
+| Database (prod) | [Turso](https://turso.tech/) — edge-hosted distributed SQLite |
+| REST docs | [Swagger / OpenAPI](https://swagger.io/) via `@nestjs/swagger` |
+| Observability | [OpenTelemetry](https://opentelemetry.io/) — traces + logs exported via OTLP |
+| Env validation | [Zod](https://zod.dev/) — schema validated at startup |
+| Security | Helmet, rate limiting, timing-safe key comparison |
+| Runtime | Node.js ≥ 22 · [pnpm](https://pnpm.io/) |
+
+---
+
+## Architecture - Dual-transport API
+
+Every resource (`products`, `categories`, `users`, `reviews`, `orders`) is exposed through two independent transports that share the same service layer:
+
+- **GraphQL** at `/graphql` — code-first schema generated from TypeScript decorators. Supports field-level resolution, nested queries, and real-time exploration via GraphiQL.
+- **REST** at `/v1/...` — URI-versioned controllers with full Swagger documentation at `/api-docs`.
+
+
+## Security
+
+- **Helmet** with a strict Content Security Policy applied globally.
+- **GraphQL depth limiting** — queries deeper than 6 levels are rejected, preventing resource exhaustion via deeply nested queries.
+- **Rate limiting** — a global `GqlThrottlerGuard` enforces 60 requests/minute per IP across both GraphQL and REST endpoints.
+- **Timing-safe API key bypass** — requests with a valid `X-API-Key` header skip the rate limiter. The comparison uses `crypto.timingSafeEqual` to prevent timing attacks.
+- **Environment validation at startup** — a Zod schema validates all required env vars before the app bootstraps. Missing or malformed vars crash the process immediately with a clear error instead of failing silently at runtime.
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js ≥ 22
+- pnpm (`npm install -g pnpm`)
+
+### Local setup
 
 ```bash
-$ pnpm install
+# 1. Install dependencies
+pnpm install
+
+# 2. Configure environment
+cp .env.example .env
+# DATABASE_URL defaults to file:./prisma/dev.db — no changes needed for local dev
+
+# 3. Run migrations and start the dev server
+pnpm prisma migrate dev
+pnpm start:dev
 ```
 
-## Compile and run the project
+The API will be available at `http://localhost:3000`.
 
-```bash
-# development
-$ pnpm run start
+### Environment variables
 
-# watch mode
-$ pnpm run start:dev
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `DATABASE_URL` | Yes | `file:./prisma/dev.db` | SQLite file path (dev) or `libsql://` URL (prod) |
+| `DATABASE_AUTH_TOKEN` | Prod only | — | Turso authentication token |
+| `PORT` | No | `3000` | HTTP port |
+| `NODE_ENV` | No | `development` | `development` / `production` / `test` |
+| `INTERNAL_API_KEY` | No | — | Sent in `X-API-Key` header to bypass rate limiting |
+| `OTEL_SERVICE_NAME` | No | `mock-shop-api` | Service name in trace spans |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | No | `http://localhost:4318/v1/traces` | OTLP traces endpoint |
+| `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` | No | `http://localhost:4318/v1/logs` | OTLP logs endpoint |
+| `OTEL_SDK_DISABLED` | No | `false` | Set to `true` to disable tracing |
 
-# production mode
-$ pnpm run start:prod
-```
+>[!Note]
+> OpenTelemetry settings are currently configured for internal testing and observability experiments. The API works correctly without OTEL, so telemetry is optional and not required for normal development or production runtime.
 
-## Run tests
 
-```bash
-# unit tests
-$ pnpm run test
+## API Overview
 
-# e2e tests
-$ pnpm run test:e2e
+### GraphQL — `/graphql`
 
-# test coverage
-$ pnpm run test:cov
-```
+GraphiQL playground and schema documentation are available at `/graphql`.
+
+- **Code-First Schema Design:** The GraphQL schema is generated directly from TypeScript decorators in the application code. This keeps resolver logic and schema definitions in sync, reduces duplication, and makes refactoring safer as the API evolves.
+
+- **DataLoader-Based N+1 Prevention:** Request-scoped DataLoaders batch and cache relation fetches during each GraphQL request, avoiding one-query-per-item resolver behavior and significantly reducing database round trips on nested queries.
+
+- **Query Depth Protection (Max 6):** Incoming GraphQL operations are validated with a maximum depth of 6 levels. Deeply nested queries are rejected early to protect compute and database resources from abusive or overly expensive requests.
+
+
+### REST - `/v1/...`
+Full Swagger documentation available at `/api-docs`. 
+
+- **Comprehensive API Exploration:** Instantly review available REST endpoints, request/response schemas, and error formats via a modern, interactive Swagger UI—no manual inspection needed.
+The API implements robust contract management and scalability features:
+
+- **Versioned Endpoints:** All REST endpoints are URI-versioned (e.g., `/v1/products`), enabling safe evolution of the API contract over time. This approach allows consumers to adopt new features or breaking changes at their own pace, minimizing integration risk and supporting long-term backward compatibility.
+
+- **Global Throttling (Rate Limiting):** Both GraphQL and REST transports enforce request throttling at the gateway layer using a high-performance, distributed GqlThrottlerGuard. This mitigates abuse, enhances security, and ensures fair resource allocation across clients—critical for production reliability. Internal tools and trusted integrations can bypass these safeguards with a scoped API key for seamless automation.
+
+Together, these best practices ensure a stable, evolvable, and well-governed API surface for all consumers.
 
 ## Deployment
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+The API is deployed on [Render](https://render.com/) with [Turso](https://turso.tech/) as the production database.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+>[!Note]
+> Prisma 7's migration engine does not support `libsql://` URLs. Because of this, `prisma migrate deploy` is **not** part of the production start script. The recommended workflow ([per Prisma v7 docs](https://www.prisma.io/docs/orm/overview/databases/turso)) is using: `turso db shell <your-db-name> < prisma/migrations/<timestamp>_<name>/migration.sql` to run manually the migrations on Turso.
